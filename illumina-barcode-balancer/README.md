@@ -1,6 +1,6 @@
 ## Illumina Barcode Balancer ##
 
-This python program selects a specified number of barcodes from a given input set such that the selected barcodes have as close to an even ratio of A/Ts and G/Cs as possible, with the ratio importance weighted more to the beginnings of the barcodes.  This ratio is important to ensure proper callibration of Illumina sequencers.
+This python program selects a specified number of barcodes from a given input set such that the selected barcodes have as close to a 50/50 ratio of AT / GC as possible, with the ratio importance weighted more to the beginnings of the barcodes.  This ratio is important to ensure proper callibration of Illumina sequencers.
 
 ### Usage ###
 
