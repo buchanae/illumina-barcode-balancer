@@ -70,9 +70,9 @@ class G():
 			left = []
 			right = []
 			for barcode in barcodes:
-				if barcode[n] in ["G","C"]:
+				if barcode[n] in ["A","C"]:
 					left.append(barcode)
-				elif barcode[n] in ["A","T"]:
+				elif barcode[n] in ["G","T"]:
 					right.append(barcode)
 				else:
 					print("Malformed barcodes.")
