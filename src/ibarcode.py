@@ -1,4 +1,6 @@
 #!/usr/bin/env python3.3
+# Notes: ^ don't point to a specific version of python.
+#          i.e. what if they have only python 3.4?
 
 '''
 Copyright © 2014 Oregon State University
@@ -34,31 +36,37 @@ MODIFICATIONS.
 
 import argparse
 from enum import Enum
+import itertools
 import random
 
 Directions = Enum('left right')
 
-# Read pep 8. Python prefers lowercase)underscore over camelCase
+# Notes: Check out pep 8. Python prefers lowercase/underscore over camelCase.
 
-# Generates a random selection of barcodes for our problem (for testing).
-# Returns as a list.
-def genBarcodes(num, minLength, maxLength):
-    # None isn't needed. In fact, you don't even need to call random.seed()
+# Notes: I turned this into an infinite generator.
+def random_barcodes(min_length, max_length):
+    """
+    Return a list of random barcodes.
+
+    Returns "num" barcodes with a length between "min_length" and "max_length".
+    """
+    # Notes: You don't need to call random.seed()
+    #        unless you want a specific seed.
     # random.seed(None)
 
     alphabet = 'ATCG'
     random_base = lambda: random.choice(alphabet)
 
     def random_barcode():
-        length = random.randint(minLength, maxLength)
+        length = random.randint(min_length, max_length)
         return ''.join(random_base() for i in range(length))
 
-    return [random_barcode() for i in range(num)]
+    while True:
+        yield random_barcode()
 
 
-# There must be a better name than "G".
-# Don't leave empty braces in a class def.
-# class G():
+# Notes: "BarcodeTree" is much more descriptive than "G"
+#         Also, don't leave empty braces after your class def.
 class BarcodeTree:
 
     # Uppercase and lowercase "n" aren't very meaningful names.
@@ -78,22 +86,27 @@ class BarcodeTree:
             right = []
 
             for barcode in barcodes:
-                if barcode[n] in ["A","C"]:
+                # Notes: strings are sequences, so you can do:
+                #        assert 'A' in 'AT'
+                if barcode[n] in 'AC':
                     left.append(barcode)
-                elif barcode[n] in ["G","T"]:
+                elif barcode[n] in 'GT':
                     right.append(barcode)
                 else:
+                    # Notes:
                     # Use exceptions for exceptional cases.
                     # They will give a better, more informative exit.
                     # sys.exit is rarely used in Python programs I've seen.
                     raise ValueError('Malformed barcode: {}'.format(barcode))
 
-            # So, I'm getting slightly complex here,
+            # Notes:
+            # So, I'm getting slightly esoteric here,
             # but if you ever wanted to subclass this, you'd run into issues
-            # because "G" is hard-coded here. You need a way to get the class
-            # to create without hard-coding it. A "classmethod" could work?
-            self.leftG = G(left, n + 1, N)
-            self.rightG = G(right, n + 1, N)
+            # because "BarcodeTree" is hard-coded here.
+            # You need a way to get the class to create without hard-coding it.
+            # A "classmethod" could work?
+            self.left = BarcodeTree(left, n + 1, N)
+            self.right = BarcodeTree(right, n + 1, N)
         else:
             self.terminal = True
 
@@ -103,16 +116,15 @@ class BarcodeTree:
         else:
             return Directions.right
 
-    def choose(self, parentdir):
+    def choose(self, parentdir=Directions.left):
+        # Notes:
         # I actually had to look up the "^"
         # Why did you use XOR? Isn't "or" what you want?
         # direction = self.dir ^ parentdir
-        direction = self.dir or parentdir
+        direction = self.direction or parentdir
 
-        # This doesn't read nicely. How can you have "not left"?
-        # self.switch_direction() would make more sense.
-        #self.dir = not self.dir
-        self._switch_direction()
+        # Notes: I think "opposite direction" is more obvious than "not left"
+        self.direction = self._opposite_direction()
 
         if self.terminal:
             if self.barcodes:
@@ -120,13 +132,14 @@ class BarcodeTree:
             else:
                 return None
         else:
-            if direction == LEFT:
-                return self.leftG.choose(not self.dir)
-            elif direction == RIGHT:
-                return self.rightG.choose(not self.dir)
+            next_direction = self._opposite_direction()
+            if direction == Directions.left:
+                return self.left.choose(next_direction)
+            elif direction == Directions.right:
+                return self.right.choose(next_direction)
 
 
-# This traverses the list once and is more readable
+# Notes: This traverses the list once and is more readable
 def min_max(items):
     min_ = float('inf')
     max_ = float('-inf')
@@ -138,22 +151,28 @@ def min_max(items):
     return min_, max_
 
 
-def barcodeBalance(barcodes, n, depth=None):
-    N = len(barcodes)
+def balance_barcodes(barcodes, n, depth=None):
+    # Notes: it's easy to get capital "N" confused with lowercase "n"
+    #        descriptive names are better.
+    num_barcodes = len(barcodes)
     solution = []
 
+    # Notes:
     # Can you build a tree without traversing the whole list beforehand?
     # Imagine there were 1 million barcodes, getting the min/max would
     # slow you down.
-    minLength, maxLength = min_max(len(barcode) for barcode in barcodes)
+    min_length, max_length = min_max(len(barcode) for barcode in barcodes)
 
-    if depth == None:
-        depth = minLength - 1
-    group = G(barcodes, 0, depth)
+    # Notes: use "variable is None" instead of "variable == None"
+    if depth is None:
+        depth = min_length - 1
 
+    tree = BarcodeTree(barcodes, 0, depth)
+
+    # TODO move to BarcodeTree.__iter__
     i = 0
     while i < n:
-        barcode = group.choose(0)
+        barcode = tree.choose()
         if barcode != None:
             solution.append(barcode)
             i += 1
@@ -161,25 +180,25 @@ def barcodeBalance(barcodes, n, depth=None):
     return solution
 
 
-def parse_file(path):
-    return open(file_handle).read().strip().split(',')
+def parse_barcodes_file(path):
+    return open(path).read().strip().split(',')
 
 
-# I define my argument parsers on the top level
+# Notes: I define my argument parsers on the top level
+#        but that's really just a minor style thing.
 parser = argparse.ArgumentParser()
 
 parser.add_argument("file", help="The CSV file from which to read the barcodes. All the barcodes should be in one row.")
 parser.add_argument("num", help="The number of barcodes to select from the file.")
 
-def main():
+if __name__ == "__main__":
     args = parser.parse_args()
-    barcodes = parse_file(args.file)
     num = int(args.num)
 
-    # barcodes = genBarcodes(num=400, minLength=6, maxLength=8)
-    solution = barcodeBalance(barcodes, num)
+    barcodes = parse_barcodes_file(args.file)
+
+    # barcodes_generator = random_barcodes(6, 8)
+    # barcodes = itertools.islice(barcodes_generator, num)
+
+    solution = balance_barcodes(barcodes, num)
     print(solution)
-
-
-if __name__ == "__main__":
-    main()
